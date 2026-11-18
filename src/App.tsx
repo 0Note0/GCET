@@ -97,8 +97,11 @@ export default function App() {
     return () => window.removeEventListener('gmp-quota-exceeded', onQuotaExceeded);
   }, []);
 
+  const isStaticHost =
+    typeof window !== 'undefined' && window.location.hostname.endsWith('.github.io');
+
   useEffect(() => {
-    if (envApiKey) {
+    if (envApiKey || isStaticHost) {
       setMapsApiKey(envApiKey);
       setIsResolvingKey(false);
       return;
@@ -127,10 +130,11 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [envApiKey]);
+  }, [envApiKey, isStaticHost]);
 
-  // Hydrate live state from Express API on mount
+  // Hydrate live state from Express API on mount when backend is available
   useEffect(() => {
+    if (isStaticHost) return;
     let active = true;
     campusApi
       .fetchState()
@@ -147,7 +151,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isStaticHost]);
 
   useEffect(() => {
     try {
@@ -179,6 +183,9 @@ export default function App() {
   const handleSimulateSensorCycle = useCallback(async () => {
     setIsSyncing(true);
     try {
+      if (isStaticHost) {
+        throw new Error('static-host');
+      }
       const nextState = await campusApi.simulateCycle();
       applyServerState(nextState);
     } catch {
@@ -209,15 +216,18 @@ export default function App() {
         if (triggered.length > 0) setAlerts((prev) => [...triggered, ...prev]);
         return next;
       });
-      setSyncError('Backend sync delayed — showing local sensor cycle update.');
+      if (!isStaticHost) {
+        setSyncError('Backend sync delayed — showing local sensor cycle update.');
+      }
     } finally {
       setIsSyncing(false);
     }
-  }, [applyServerState]);
+  }, [applyServerState, isStaticHost]);
 
   const handleFlagOverflow = useCallback(
     async (binId: string) => {
       try {
+        if (isStaticHost) throw new Error('static-host');
         const nextState = await campusApi.flagOverflow(binId);
         applyServerState(nextState);
       } catch {
@@ -249,12 +259,13 @@ export default function App() {
         ]);
       }
     },
-    [applyServerState, bins]
+    [applyServerState, bins, isStaticHost]
   );
 
   const handleDispatchCrew = useCallback(
     async (binId: string) => {
       try {
+        if (isStaticHost) throw new Error('static-host');
         const nextState = await campusApi.dispatchCrew(binId);
         applyServerState(nextState);
       } catch {
@@ -269,12 +280,13 @@ export default function App() {
         );
       }
     },
-    [applyServerState]
+    [applyServerState, isStaticHost]
   );
 
   const handleMarkEmptied = useCallback(
     async (binId: string) => {
       try {
+        if (isStaticHost) throw new Error('static-host');
         const nextState = await campusApi.collectBin(binId);
         applyServerState(nextState);
       } catch {
@@ -302,12 +314,13 @@ export default function App() {
         );
       }
     },
-    [applyServerState]
+    [applyServerState, isStaticHost]
   );
 
   const handleDismissAlert = useCallback(
     async (alertId: string) => {
       try {
+        if (isStaticHost) throw new Error('static-host');
         const nextState = await campusApi.dismissAlert(alertId);
         applyServerState(nextState);
       } catch {
@@ -318,11 +331,12 @@ export default function App() {
         );
       }
     },
-    [applyServerState]
+    [applyServerState, isStaticHost]
   );
 
   const handleResetRouteScenario = useCallback(async () => {
     try {
+      if (isStaticHost) throw new Error('static-host');
       const nextState = await campusApi.resetCampus();
       applyServerState(nextState);
     } catch {
@@ -330,7 +344,7 @@ export default function App() {
       setAlerts(INITIAL_ALERTS);
       setReports(INITIAL_REPORTS);
     }
-  }, [applyServerState]);
+  }, [applyServerState, isStaticHost]);
 
   const handleSubmitOverflowForm = useCallback(
     async (payload: {
@@ -344,6 +358,7 @@ export default function App() {
       evidenceDataUrl?: string;
     }): Promise<OverflowReport> => {
       try {
+        if (isStaticHost) throw new Error('static-host');
         const result = await campusApi.submitReport(payload);
         applyServerState(result.state);
         return result.report;
@@ -402,7 +417,7 @@ export default function App() {
         return report;
       }
     },
-    [applyServerState, bins]
+    [applyServerState, bins, isStaticHost]
   );
 
   const openReportDrawer = useCallback((binId?: string) => {
