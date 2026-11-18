@@ -1,0 +1,6 @@
+{
+  "name": "GCET CleanCampus",
+  "description": "Smart campus waste management platform for Galgotia College of Engineering & Technology featuring real-time bin monitoring, automated mobile collection alerts, and instant student and staff overflow reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
