@@ -106,7 +106,12 @@ export default function App() {
 
     let active = true;
     fetch('/api/maps-config', { credentials: 'same-origin' })
-      .then((res) => (res.ok ? res.json() : { apiKey: '' }))
+      .then(async (res) => {
+        if (!res.ok) return { apiKey: '' };
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return { apiKey: '' };
+        return (await res.json()) as { apiKey?: string };
+      })
       .then((data: { apiKey?: string }) => {
         if (!active) return;
         setMapsApiKey(data.apiKey || '');
@@ -338,11 +343,66 @@ export default function App() {
       notes: string;
       evidenceDataUrl?: string;
     }): Promise<OverflowReport> => {
-      const result = await campusApi.submitReport(payload);
-      applyServerState(result.state);
-      return result.report;
+      try {
+        const result = await campusApi.submitReport(payload);
+        applyServerState(result.state);
+        return result.report;
+      } catch {
+        const target = bins.find((b) => b.id === payload.binId) ?? bins[0];
+        if (!target) {
+          throw new Error('Selected smart bin not found.');
+        }
+        const nowLabel = formatCurrentTime();
+        const ticketNumber = `GCET-RPT-${Math.floor(1000 + Math.random() * 9000)}`;
+        const report: OverflowReport = {
+          id: `rpt-${Date.now()}`,
+          ticketNumber,
+          binId: target.id,
+          binCode: target.code,
+          location: target.name,
+          reporterName: payload.reporterName.trim(),
+          campusId: payload.campusId.trim(),
+          role: payload.role,
+          issueType: payload.issueType,
+          urgency: payload.urgency,
+          notes: payload.notes.trim(),
+          createdAt: nowLabel,
+          status: 'Pending Dispatch',
+        };
+
+        setBins((prev) =>
+          prev.map((b) =>
+            b.id === target.id
+              ? {
+                  ...b,
+                  fillLevel: Math.max(b.fillLevel, 93),
+                  reportedOverflow: true,
+                  updatedAt: nowLabel,
+                }
+              : b
+          )
+        );
+        setAlerts((prev) => [
+          {
+            id: `alrt-${Date.now()}-${target.id}`,
+            binId: target.id,
+            binCode: target.code,
+            location: target.name,
+            zone: target.zone,
+            trigger: 'Student/Staff Report',
+            severity: 'Critical',
+            message: `${payload.issueType} reported by ${payload.reporterName.trim()} (${ticketNumber}).`,
+            timestamp: nowLabel,
+            assignedCrew: null,
+            status: 'Active',
+          },
+          ...prev,
+        ]);
+        setReports((prev) => [report, ...prev]);
+        return report;
+      }
     },
-    [applyServerState]
+    [applyServerState, bins]
   );
 
   const openReportDrawer = useCallback((binId?: string) => {

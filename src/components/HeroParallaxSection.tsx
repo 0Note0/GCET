@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion } from 'motion/react';
 import { ArrowDown, Cpu, Radio, Sun } from 'lucide-react';
+import heroCampusImg from '../assets/images/hero_campus_bins_1794939127797.jpg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,7 +66,7 @@ export const HeroParallaxSection: React.FC<HeroParallaxSectionProps> = ({
       >
         {!bgError ? (
           <img
-            src="/src/assets/images/hero_campus_bins_1794939127797.jpg"
+            src={heroCampusImg}
             alt="Galgotias College of Engineering and Technology campus plaza with smart waste bins"
             referrerPolicy="no-referrer"
             loading="eager"
